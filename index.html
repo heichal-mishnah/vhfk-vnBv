@@ -220,6 +220,17 @@ html[data-skin="nd"] .field label,html[data-skin="nd"] .legend{color:#777;font-w
 html[data-skin="nd"] .pill[aria-pressed="true"]{background:#e9b876;color:#1d2230;border-color:#e9b876}
 html[data-skin="nd"] .urow .btn.primary{background:#38c230}
 html[data-skin="nd"] details summary b{color:#111}
+.topbtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+.topbtn{font:inherit;font-weight:600;border:0;border-radius:6px;padding:10px 18px;color:#fff;cursor:pointer;min-height:44px}
+.topbtn.a{background:#3a8ea8}.topbtn.b{background:#e0a030}
+.tohtbl tbody tr:nth-child(odd){background:#fff}
+.tohtbl tbody tr:nth-child(even){background:#eef0f3}
+.tohtbl tbody tr.rev{background:#fff3c4}
+.tohtbl tbody tr.me{outline:2px solid var(--accent);outline-offset:-2px}
+.revtag{color:#8a5a00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tohtbl tbody tr:nth-child(odd){background:#171e2b}:root:not([data-theme="light"]) .tohtbl tbody tr:nth-child(even){background:#1f2838}:root:not([data-theme="light"]) .tohtbl tbody tr.rev{background:#4a3d12}:root:not([data-theme="light"]) .revtag{color:#f2c14e}}
+.tohtbl{min-width:0 !important;width:100%}
+.tohtbl td,.tohtbl th{white-space:normal;padding:8px 6px}
 </style>
 
 </head>
@@ -505,7 +516,9 @@ function render(){
   const dd=$("dedic"); dd.textContent=state.settings.dedication||""; dd.hidden=!state.settings.dedication;
   const V={home:vHome,siyum:vSiyum,cycles:vCycles,reg:vReg,smart:vSmart,chapters:vChapters,form:vForm,done:vDone,where:vWhere,mine:vMine,tohorot:vTohorot,camps:vCamps,contact:vContact,exams:vExams,messages:vMessages,lottery:vLottery,auth:vAuth,admin:vAdmin,explain:vExplain,versions:vVersions,newgroup:vNewGroup};
   const fk=FROUTE[route.n]; if(fk&&!featOn(fk)&&!ui.admin){ $("main").replaceChildren(h("div",{class:"panel stack"},h("div",{class:"muted",text:"העמוד הזה לא זמין כרגע."}),h("div",{},h("button",{class:"btn primary",type:"button",text:"לבית",onclick:()=>go("home")})))); $("adminLink").hidden=KIOSK; applyKiosk(); return; }
-  $("main").replaceChildren(V[route.n]());
+  const view=V[route.n](), tb=(curMode()==="2"&&route.n!=="admin"&&featOn("siyum"))?topButtons():null;
+  $("main").replaceChildren(...(tb?[tb,view]:[view]));
+  if(route.n==="admin"&&ui.admin){ if(ui.tab&&!ui.snapInit) markSeen(ui.tab,true); paintBadges(); startAdminPoll(); }
   $("adminLink").hidden=route.n==="admin"||KIOSK; applyKiosk();
   if(route.n==="home") maybePopup();
 }
@@ -834,19 +847,36 @@ function vDone(){
 }
 
 /* ---------- איפה אוחזים ---------- */
+/* ---------- חלוניות עליונות ---------- */
+function closeModal(){ const m=document.getElementById("mdl"); if(m) m.remove(); ui.inModal=false; }
+function openModal(title,node){
+  closeModal(); ui.inModal=true;
+  const ov=h("div",{id:"mdl",class:"overlay",role:"dialog","aria-modal":"true","aria-label":title,onclick:(e)=>{ if(e.target===ov) closeModal(); }},
+    h("div",{class:"modal",style:"max-width:720px;max-height:88vh;overflow:auto"},h("div",{class:"row",style:"justify-content:space-between"},h("b",{text:title}),h("button",{class:"btn small",type:"button",text:"✕ סגירה",onclick:closeModal})),node));
+  document.body.append(ov);
+}
+function openChapters(){ ui.inModal=true; const n=vChapters(); openModal("רשימת הפרקים",n); }
+const ABOUT_DEFAULT=()=>PROGRAMS.map(p=>p[0]+"\n"+p[1]).join("\n\n");
+function openAbout(){ openModal("פרטים על המיזם",h("div",{style:"white-space:pre-wrap;line-height:1.7",text:(state.settings.about||"").trim()||ABOUT_DEFAULT()})); }
+function topButtons(){
+  return h("div",{class:"topbtns"},
+    h("button",{class:"topbtn a",type:"button",text:"רשימת הפרקים",onclick:openChapters}),
+    h("button",{class:"topbtn b",type:"button",text:"פרטים על המיזם",onclick:openAbout}));
+}
 function vChapters(){
   const list=visibleCycles(); if(!list.length) return h("div",{class:"panel muted",text:"אין מחזורים להצגה."});
   if(!ui.chc||!list.some(c=>c.id===ui.chc)) ui.chc=(list.find(c=>c.status==="learning")||list.find(c=>c.status==="open")||list[0]).id;
   const c=cyc(ui.chc), us=cunits(c), N=us[0].w, wi=weekIdx(c); ui.chv=ui.chv||"week";
-  const sw=h("div",{class:"filters"},...list.map(x=>h("button",{class:"pill",type:"button","aria-pressed":String(x.id===c.id),text:x.name,onclick:()=>{ui.chc=x.id;render();}})));
-  const vw=h("div",{class:"filters"},...[["week","לפי שבוע / פרשה"],["unit","לפי יחידה"]].map(([k,t])=>h("button",{class:"pill",type:"button","aria-pressed":String(ui.chv===k),text:t,onclick:()=>{ui.chv=k;render();}})));
+  const rr=()=>ui.inModal?openChapters():render();
+  const sw=h("div",{class:"filters"},...list.map(x=>h("button",{class:"pill",type:"button","aria-pressed":String(x.id===c.id),text:x.name,onclick:()=>{ui.chc=x.id;rr();}})));
+  const vw=h("div",{class:"filters"},...[["week","לפי שבוע / פרשה"],["unit","לפי יחידה"]].map(([k,t])=>h("button",{class:"pill",type:"button","aria-pressed":String(ui.chv===k),text:t,onclick:()=>{ui.chv=k;rr();}})));
   const taken=takenSet(c.id), mine=new Set(me()?state.regs.filter(r=>r.cid===c.id&&r.lid===me().id).flatMap(r=>r.units):[]);
   let body;
   if(ui.chv==="unit") body=weekTable(c,us,{mine});
   else body=h("div",{class:"stack"},...Array.from({length:N},(_,i)=>h("div",{class:"panel stack",style:i===wi?"border:2px solid var(--accent)":""},
     h("div",{class:"row"},h("b",{class:"grow",text:weekLabel(c,i)+" · "+fmtDate(addDays(c.start,i*7))}),i===wi?h("span",{class:"chip mine",text:"השבוע"}):null),
     ...us.filter(u=>u.wk[i]).map(u=>h("div",{class:"muted"},h("b",{class:"num",text:"יחידה "+u.c+" "}),u.wk[i],mine.has(u.c)?h("b",{text:" ← שלך"}):null)))));
-  return h("div",{class:"stack"},h("h2",{text:"רשימת הפרקים"}),sw,vw,body);
+  return h("div",{class:"stack"},ui.inModal?null:h("h2",{text:"רשימת הפרקים"}),sw,vw,body);
 }
 function vWhere(){
   const list=visibleCycles(); if(!list.length) return h("div",{class:"panel muted",text:"אין מחזורים להצגה."});
@@ -921,8 +951,9 @@ function vTohorot(){
     h("div",{class:"hub"},
       h("div",{class:"explain"},h("p",{text:"לימוד יומי של סדר טהרות במשנה ובפירוש הרע\"ב, במשך שנה אחת. בימים א'-ה' לומדים חומר חדש, ובשישי ובשבת חוזרים על חומר השבוע."}),h("p",{text:"התוכנית בנויה כך שאף יום לימוד אינו חוצה בין מסכתות, ולכן אפשר להצטרף בכל שלב ולדעת בדיוק מה הטווח של היום. בלוח למטה מופיעים הימים הקרובים, וכאן מתפרסמות הודעות הקניין."}),h("button",{class:"link",type:"button",text:"הסבר מלא",onclick:()=>go("explain","tohorot")}))),
     h("h3",{text:"הימים הקרובים"}),
-    h("div",{class:"tablewrap"},h("table",{},h("thead",{},h("tr",{},...["תאריך","יום","סוג","טווח"].map(x=>h("th",{text:x})))),
-      h("tbody",{},upcoming.map(e=>h("tr",{class:e.d===t?"me":""},h("td",{text:e.he}),h("td",{text:e.dy}),h("td",{text:e.k}),h("td",{text:e.r})))))),
+    h("div",{class:"tablewrap"},h("table",{class:"tohtbl"},h("thead",{},h("tr",{},...["תאריך","יום","טווח"].map(x=>h("th",{text:x})))),
+      h("tbody",{},upcoming.map(e=>h("tr",{class:(e.d===t?"me ":"")+(e.k==="חזרה"?"rev":"")},h("td",{text:e.he}),h("td",{text:e.dy}),h("td",{},e.r,e.k==="חזרה"?h("b",{class:"revtag",text:" · חזרה"}):null)))))),
+    h("div",{class:"muted",text:"ימי שישי ושבת (מסומנים בצהוב) הם חזרה על חומר השבוע."}),
     h("h3",{text:"הודעות הקניין"}),
     ...(msgs.length?msgs.map(msgCard):[h("div",{class:"panel muted",text:"אין הודעות עדיין."})]),
     h("h3",{text:"המבחן היומי או השבועי"}),
@@ -1194,7 +1225,7 @@ function vAdmin(){
   const tabs=[["cycles","מחזורים"],["regs","הרשמות"],["confirm","אישורי לימוד"],["lottery","הגרלות"],["camps","מועדי השנה"],["inbox","פניות"],["msgs","הודעות"],["exams","מבחנים"],["data","נתונים והגדרות"]];
   const body={cycles:aCycles,regs:aRegs,confirm:aConfirm,lottery:aLottery,camps:aCamps,inbox:aInbox,msgs:aMsgs,exams:aExams,data:aData}[ui.tab]();
   return h("div",{class:"stack"},h("div",{class:"row",style:"justify-content:space-between"},h("h2",{text:"ניהול"}),h("button",{class:"btn small",type:"button",text:"יציאה",onclick:async()=>{ ui.admin=false; if(LIVE){ Remote.logout(); try{ await loadLive(); }catch(e){} } go("home"); }})),
-    h("div",{class:"tabs"},...tabs.map(([k,t])=>h("button",{class:"pill",type:"button","aria-pressed":String(ui.tab===k),text:t,onclick:()=>{ui.tab=k;ui.edit=null;render();}}))),body);
+    h("div",{class:"tabs"},...tabs.map(([k,t])=>h("button",{class:"pill","data-tab":k,"data-label":t,type:"button","aria-pressed":String(ui.tab===k),text:t,onclick:()=>{ui.tab=k;ui.edit=null;markSeen(k);render();}}))),body);
 }
 function sureBtn(label,fn,cls){ return h("button",{class:"btn small "+(cls||"danger"),type:"button",text:label,onclick:function(){ if(this.dataset.s!=="1"){ this.dataset.s="1"; this.textContent="לחץ שוב לאישור"; setTimeout(()=>{this.dataset.s="";this.textContent=label;},3000); return; } fn(); }}); }
 function aCycles(){
@@ -1277,6 +1308,41 @@ function aMsgs(){
     state.msgs.push({id:uid("m"),sec:$("mSec").value,title,text:$("mText").value.trim(),img,popup:$("mPop").checked,ts:Date.now()}); await persist(); render(); toast("פורסם"); });
   return h("div",{class:"stack"},f,h("h3",{text:"הודעות קיימות"}),...[...state.msgs].sort((a,b)=>b.ts-a.ts).map(m=>h("div",{class:"stack"},msgCard(m),h("div",{},sureBtn("מחק הודעה",async()=>{ state.msgs=state.msgs.filter(x=>x.id!==m.id); await persist(); render(); })))));
 }
+/* ---------- התראות למנהל: חדש שלא נקרא ---------- */
+const SEENK="hm-admin-seen";
+function seenGet(){ try{ return JSON.parse(localStorage.getItem(SEENK)||"null"); }catch(e){ return null; } }
+function seenSet(o){ try{ localStorage.setItem(SEENK,JSON.stringify(o)); }catch(e){} }
+function snapFromState(){
+  const regs=state.regs.filter(r=>!r.anon);
+  return {regs:Math.max(0,...regs.map(r=>r.ts||0)), regsN:regs.length, conf:regs.reduce((n,r)=>n+(r.confirms||[]).length+(r.ch||[]).length,0), inbox:state.inbox.filter(m=>!m.done).length, exams:(ui.snap&&ui.snap.exams)||0};
+}
+function badgeCounts(){
+  const cur=ui.snap||snapFromState(), seen=seenGet()||cur;
+  return {regs:Math.max(0,(cur.regsN||0)-(seen.regsN||0)), confirm:Math.max(0,cur.conf-(seen.conf||0)), inbox:cur.inbox, exams:Math.max(0,(cur.exams||0)-(seen.exams||0))};
+}
+function markSeen(tab,init){
+  const cur=ui.snap||snapFromState(); ui.snapInit=true;
+  const seen=seenGet()||Object.assign({},cur);
+  if(init&&seenGet()) return;
+  if(tab==="regs") seen.regs=cur.regs, seen.regsN=cur.regsN; else if(tab==="confirm") seen.conf=cur.conf; else if(tab==="exams") seen.exams=cur.exams; else if(init){ Object.assign(seen,cur); }
+  seenSet(seen);
+}
+function paintBadges(){
+  const b=badgeCounts(), map={regs:b.regs,confirm:b.confirm,inbox:b.inbox,exams:b.exams}; let tot=0;
+  document.querySelectorAll(".tabs [data-tab]").forEach(el=>{ const k=el.dataset.tab, n=map[k]||0; if(n&&ui.tab!==k) tot+=n; el.textContent=el.dataset.label+(n?" ("+n+")":""); el.style.fontWeight=n?"800":""; });
+  document.title=(tot?"("+tot+") ":"")+"היכל המשנה";
+}
+async function pollAdmin(){
+  if(!ui.admin||!LIVE||!Remote.isAdmin()) return;
+  try{
+    const [regs,inb]=await Promise.all([Remote.all("/rest/v1/regs?select=id,ts,confirms,ch",true),Remote.all("/rest/v1/inbox?select=id,done",true)]);
+    let ex=0; try{ ex=(await Remote.all("/rest/v1/exam_results?select=lid",true)).length; }catch(e){}
+    ui.snap={regs:Math.max(0,...regs.map(r=>new Date(r.ts).getTime())),regsN:regs.length,conf:regs.reduce((n,r)=>n+(r.confirms||[]).length+(r.ch||[]).length,0),inbox:inb.filter(m=>!m.done).length,exams:ex};
+    if(!seenGet()) seenSet(Object.assign({},ui.snap));
+    paintBadges();
+  }catch(e){}
+}
+function startAdminPoll(){ if(ui.pollOn) return; ui.pollOn=true; pollAdmin(); setInterval(pollAdmin,60000); }
 function aInbox(){
   if(!state.inbox.length) return h("div",{class:"panel muted",text:"אין פניות."});
   return h("div",{class:"tablewrap"},h("table",{},h("thead",{},h("tr",{},...["שם","טלפון","נושא","הודעה","תאריך","טופל",""].map(t=>h("th",{text:t})))),
@@ -1306,6 +1372,63 @@ function csv(){
   state.regs.forEach(r=>{ const c=cyc(r.cid), l=state.learners.find(x=>x.id===r.lid)||{}; r.units.forEach(code=>{ const u=c&&ucode(c,code); lines.push([c?.name,l.name,l.phone,l.idn,code,u?u.t:"",r.pace,r.confirms.join(" ")].map(q).join(",")); }); });
   return lines.join("\r\n");
 }
+/* ---------- גיבוי לאקסל (xlsx אמיתי, בלי ספריות) ---------- */
+const CRC=(()=>{ const t=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(u){ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=CRC[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zipStore(files){
+  const enc=new TextEncoder(), parts=[], cd=[]; let off=0;
+  const u16=(v)=>[v&255,(v>>8)&255], u32=(v)=>[v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];
+  for(const [name,txt] of files){
+    const nb=enc.encode(name), data=enc.encode(txt), crc=crc32(data);
+    const lh=new Uint8Array([0x50,0x4b,3,4,20,0,0,8,0,0,0,0,0,0,...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),0,0]);
+    parts.push(lh,nb,data);
+    cd.push(new Uint8Array([0x50,0x4b,1,2,20,0,20,0,0,8,0,0,0,0,0,0,...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),0,0,0,0,0,0,0,0,0,0,0,0,...u32(off)]),nb);
+    off+=lh.length+nb.length+data.length;
+  }
+  const cdLen=cd.reduce((a,b)=>a+b.length,0);
+  const end=new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(cdLen),...u32(off),0,0]);
+  return new Blob([...parts,...cd,end],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+function xlsxBlob(sheets){
+  const esc=(v)=>String(v??"").replace(/[<>&"\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,(c)=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]||""));
+  const colName=(i)=>{ let n="",x=i+1; while(x>0){ const m=(x-1)%26; n=String.fromCharCode(65+m)+n; x=Math.floor((x-1)/26); } return n; };
+  const files=[["[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("")+'</Types>'],
+    ["_rels/.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ["xl/workbook.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map((x,i)=>'<sheet name="'+esc(x[0]).slice(0,31)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("")+'</sheets></workbook>'],
+    ["xl/_rels/workbook.xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((_,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")+'</Relationships>']];
+  sheets.forEach((sh,i)=>{
+    const rows=sh[1].map((r,ri)=>'<row r="'+(ri+1)+'">'+r.map((v,ci)=>{ const ref=colName(ci)+(ri+1); return (typeof v==="number"&&isFinite(v))?'<c r="'+ref+'"><v>'+v+'</v></c>':'<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+esc(v)+'</t></is></c>'; }).join("")+'</row>').join("");
+    files.push(["xl/worksheets/sheet"+(i+1)+".xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="'+Math.max(1,(sh[1][0]||[]).length)+'" width="22" customWidth="1"/></cols><sheetData>'+rows+'</sheetData></worksheet>']);
+  });
+  return zipStore(files);
+}
+function saveBlob(blob,name){ const a=h("a",{href:URL.createObjectURL(blob),download:name}); document.body.append(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); }
+const fmtTs=(t)=>{ try{ return new Date(t).toLocaleString("he-IL"); }catch(e){ return ""; } };
+function regsWorkbook(){
+  const L=(id)=>state.learners.find(x=>x.id===id)||{};
+  const learners=[["שם","מספר זהות","טלפון","טלפון נוסף","אימייל","עיר","כתובת","תזכורת"],...state.learners.map(l=>[l.name,l.idn,l.phone,l.phone2,l.email,l.city,l.addr,l.remind?(l.remind.day+" "+l.remind.part):""])];
+  const units=[["מחזור","קוד יחידה","יחידה","שם","מספר זהות","טלפון","קצב","תאריך הרשמה"]];
+  const conf=[["מחזור","שם","מספר זהות","קוד יחידה","יחידה","שבוע","שם השבוע","אושר"]];
+  state.regs.filter(r=>!r.anon).forEach(r=>{ const c=cyc(r.cid), l=L(r.lid); r.units.forEach(code=>{ const u=c&&ucode(c,code);
+    units.push([c?c.name:r.cid,code,u?u.t:"",l.name,l.idn,l.phone,r.pace==="once"?"בקצב אישי":"פרק בשבוע",fmtTs(r.ts)]);
+    if(u) for(let w=1;w<=u.w;w++){ const ok=(r.confirms||[]).includes(w)||(r.ch||[]).includes(code+":"+w); conf.push([c.name,l.name,l.idn,code,u.t,w,weekLabel(c,w-1),ok?"כן":"לא"]); } }); });
+  const inbox=[["תאריך","שם","טלפון","נושא","תוכן","טופל"],...state.inbox.map(m=>[fmtTs(m.ts),m.name,m.phone,m.topic,m.text,m.done?"כן":"לא"])];
+  return xlsxBlob([["נרשמים",learners],["הרשמות ליחידות",units],["אישורי לימוד",conf],["פניות",inbox]]);
+}
+async function examsWorkbook(){
+  const L=(id)=>state.learners.find(x=>x.id===id)||{};
+  let ex=[],qs=[],an=[],co=[],res=[];
+  if(LIVE){ [ex,qs,an,co,res]=await Promise.all(["exams?select=*&order=ord","exam_questions?select=*&order=ord","exam_answers?select=*&order=ord","exam_correct?select=*","exam_results?select=*&order=ts"].map(p=>Remote.all("/rest/v1/"+p,true))); }
+  else if(DATA.exams){ const d=DATA.exams; Object.keys(d.qs).forEach(eid=>d.qs[eid].forEach(q=>{ qs.push({id:q.id,exam_id:Number(eid),text:q.t}); q.a.forEach(a=>{ an.push({id:a.id,qid:q.id,text:a.t}); if(a.ok) co.push({qid:q.id,aid:a.id}); }); }));
+    d.chapters.forEach(c=>Object.keys(c.exams).forEach(t=>ex.push({id:c.exams[t],tractate:d.tractate,chapter:c.name,type_name:d.types[t]})));
+    Object.entries(state.examRes||{}).forEach(([k,v])=>{ const [lid,eid]=k.split(":"); res.push({lid,exam_id:Number(eid),score:v.score,total:v.total,answers:v.answers,ts:Date.now()}); }); }
+  const E=Object.fromEntries(ex.map(e=>[e.id,e])), Q=Object.fromEntries(qs.map(q=>[q.id,q])), A=Object.fromEntries(an.map(a=>[a.id,a])), C=Object.fromEntries(co.map(c=>[c.qid,c.aid]));
+  const results=[["תאריך","שם","מספר זהות","מסכת","פרק","סוג מבחן","ציון","מתוך"],...res.map(r=>{ const l=L(r.lid), e=E[r.exam_id]||{}; return [fmtTs(r.ts),l.name||r.lid,l.idn,e.tractate,e.chapter,e.type_name,r.score,r.total]; })];
+  const det=[["שם","מספר זהות","מסכת","פרק","סוג מבחן","שאלה","תשובת הנבחן","התשובה הנכונה","נכון"]];
+  res.forEach(r=>{ const l=L(r.lid), e=E[r.exam_id]||{}; Object.entries(r.answers||{}).forEach(([qid,aid])=>{ const q=Q[qid]||{}, ok=C[qid]; det.push([l.name||r.lid,l.idn,e.tractate,e.chapter,e.type_name,q.text,(A[aid]||{}).text,(A[ok]||{}).text,String(ok)===String(aid)?"כן":"לא"]); }); });
+  const bank=[["מסכת","פרק","סוג מבחן","שאלה","תשובה","נכונה"]]; qs.forEach(q=>{ const e=E[q.exam_id]||{}; an.filter(a=>a.qid===q.id).forEach(a=>bank.push([e.tractate,e.chapter,e.type_name,q.text,a.text,String(C[q.id])===String(a.id)?"V":""])); });
+  return xlsxBlob([["תוצאות",results],["תשובות מפורטות",det],["בנק שאלות",bank]]);
+}
 function aData(){
   const ta=h("textarea",{class:"csv",readonly:true}); ta.value=csv();
   const url=h("input",{id:"dUrl",value:state.settings.donateUrl||"",dir:"ltr",placeholder:"https://...",style:"border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;width:100%"});
@@ -1317,8 +1440,12 @@ function aData(){
   const feats=h("div",{class:"panel stack"},h("h3",{text:"מה מוצג לציבור"}),h("div",{class:"muted",text:"כל הקטעים תמיד גלויים לך כמנהל, עם סימון \"מוסתר מהציבור\". כאן בוחרים מה הציבור רואה."}),
     ...FEATS.map(([k,t])=>{ const cb=h("input",{type:"checkbox",style:"accent-color:var(--accent);width:18px;height:18px",onchange:async(e)=>{ state.settings["show_"+k]=e.target.checked; await persist(); toast("נשמר"); }}); cb.checked=state.settings["show_"+k]!==false; return h("label",{class:"row",style:"gap:10px;min-height:40px"},cb,t); }));
   return h("div",{class:"stack"},skin,feats,
+    h("div",{class:"panel stack"},h("h3",{text:"פרטים על המיזם (החלונית העליונה)"}),h("textarea",{id:"dAbout",rows:"8",style:"border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;width:100%",placeholder:"אם ריק, יוצג הסבר ברירת מחדל על התוכניות"},state.settings.about||""),h("div",{},h("button",{class:"btn primary",type:"button",text:"שמור",onclick:async()=>{ state.settings.about=$("dAbout").value; await persist(); toast("נשמר"); }}))),
     h("div",{class:"panel stack"},h("h3",{text:"הקדשה בראש האתר"}),h("input",{id:"dDed",value:state.settings.dedication||"",style:"border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;width:100%"}),h("div",{},h("button",{class:"btn primary",type:"button",text:"שמור",onclick:async()=>{ state.settings.dedication=$("dDed").value.trim(); await persist(); render(); toast("נשמר"); }}))),
     h("div",{class:"panel stack"},h("h3",{text:"קישור לתרומה (כללי, נדרים פלוס)"}),url,h("div",{},h("button",{class:"btn primary",type:"button",text:"שמור",onclick:async()=>{ state.settings.donateUrl=url.value.trim(); await persist(); toast("נשמר"); }}))),
+    h("div",{class:"panel stack"},h("h3",{text:"גיבוי לאקסל"}),h("div",{class:"muted",text:"שני קבצי אקסל נפרדים. הראשון: נרשמים, הרשמות ליחידות, אישורי לימוד ופניות. השני: תוצאות המבחנים, התשובות המפורטות ובנק השאלות."}),
+      h("div",{class:"row"},h("button",{class:"btn primary",type:"button",text:"הורד אקסל הרשמות ואישורי לימוד",onclick:()=>{ try{ saveBlob(regsWorkbook(),"heichal-registrations-"+todayIso()+".xlsx"); }catch(e){ toast("הייצוא נכשל"); } }}),
+        h("button",{class:"btn primary",type:"button",text:"הורד אקסל מבחנים",onclick:async()=>{ try{ saveBlob(await examsWorkbook(),"heichal-exams-"+todayIso()+".xlsx"); }catch(e){ toast("הייצוא נכשל: "+errMsg(e)); } }}))),
     h("div",{class:"panel stack"},h("h3",{text:"ייצוא הרשמות"}),h("div",{class:"row"},
       h("button",{class:"btn primary",type:"button",text:"הורד CSV",onclick:()=>{ try{ const a=h("a",{href:URL.createObjectURL(new Blob(["﻿"+csv()],{type:"text/csv;charset=utf-8"})),download:"registrations.csv"}); document.body.append(a); a.click(); a.remove(); }catch(e){ toast("ההורדה לא זמינה כאן"); } }}),
       h("button",{class:"btn",type:"button",text:"העתק",onclick:async()=>{ try{ await navigator.clipboard.writeText(csv()); toast("הועתק"); }catch(e){ toast("סמן והעתק ידנית"); } }})),ta),
