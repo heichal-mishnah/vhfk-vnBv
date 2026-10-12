@@ -406,7 +406,7 @@ const uid=(p)=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 let KIOSK=/[?&]kiosk=1/.test(location.search); let lastTouch=Date.now();
 function applyKiosk(){
   document.documentElement.toggleAttribute("data-kiosk",KIOSK);
-  document.body.style.zoom=KIOSK?String(Math.min(2.6,Math.max(1,innerWidth/520))):"1";
+  const zq=/[?&]zoom=([\d.]+)/.exec(location.search); document.body.style.zoom=KIOSK?String(zq?Math.min(3,Math.max(.8,Number(zq[1]))):(innerWidth>=900?1.15:Math.min(1.8,Math.max(1,innerWidth/520)))):"1";
   $("demoBadge").hidden=!DEMO||KIOSK; $("kioskLink").textContent=KIOSK?"יציאה ממצב עמדה":"מצב עמדה";
 }
 /* מקלדת על המסך למצב עמדה (אין מקלדת פיזית) */
@@ -484,8 +484,8 @@ function seed(){
 const hist=[];
 function go(n,a){ if(n==="home") hist.length=0; else if(route.n!==n||route.a!==(a??null)){ hist.push(route); if(hist.length>40) hist.shift(); } route={n,a:a??null}; ui.sel=(n==="reg"||n==="form")?ui.sel:[]; ui.ms=(n==="smart"||n==="form")?ui.ms:[]; render(); window.scrollTo(0,0); }
 function back(){ const p=hist.pop()||{n:"home",a:null}; route=p; render(); window.scrollTo(0,0); }
-const TITLES={versions:"ארבע החלוקות",newgroup:"הצעה ליצירת קבוצה",home:"בית",siyum:"לימוד והשלמת ש\"ס משניות בחבורה",cycles:"בחירת מחזור",reg:"בחירת יחידות",smart:"בחירה במחזורים מקבילים",form:"פרטי הרשמה",done:"ההרשמה נשמרה",where:"אישור לימוד",mine:"האזור האישי",tohorot:"קניין טהרות",camps:"מועדי השנה",contact:"השארת הודעה למערכת",exams:"מבחנים",messages:"הודעות",lottery:"הזוכים בהגרלות",auth:"כניסה",admin:"ניהול",explain:"הסבר"};
-const PARENT={versions:"siyum",newgroup:"siyum",siyum:"home",cycles:"siyum",reg:"cycles",smart:"cycles",form:"reg",done:"siyum",where:"siyum",mine:"siyum",tohorot:"home",camps:"home",contact:"home",exams:"home",messages:"home",lottery:"home",auth:"home",admin:"home",explain:"home"};
+const TITLES={versions:"ארבע החלוקות",newgroup:"הצעה ליצירת קבוצה",home:"בית",siyum:"לימוד והשלמת ש\"ס משניות בחבורה",cycles:"בחירת מחזור",reg:"בחירת יחידות",smart:"בחירה במחזורים מקבילים",chapters:"רשימת הפרקים",form:"פרטי הרשמה",done:"ההרשמה נשמרה",where:"אישור לימוד",mine:"האזור האישי",tohorot:"קניין טהרות",camps:"מועדי השנה",contact:"השארת הודעה למערכת",exams:"מבחנים",messages:"הודעות",lottery:"הזוכים בהגרלות",auth:"כניסה",admin:"ניהול",explain:"הסבר"};
+const PARENT={versions:"siyum",newgroup:"siyum",siyum:"home",cycles:"siyum",reg:"cycles",smart:"cycles",chapters:"siyum",form:"reg",done:"siyum",where:"siyum",mine:"siyum",tohorot:"home",camps:"home",contact:"home",exams:"home",messages:"home",lottery:"home",auth:"home",admin:"home",explain:"home"};
 function crumbs(){
   const chain=[]; let n=route.n; while(n){ chain.unshift(n); n=PARENT[n]; }
   const box=$("crumbs"); box.replaceChildren();
@@ -503,7 +503,7 @@ function applySkin(){ const k=curMode()==="2"?"nd":"classic"; document.documentE
 function render(){
   applySkin(); closeKB(); renderAuth(); crumbs();
   const dd=$("dedic"); dd.textContent=state.settings.dedication||""; dd.hidden=!state.settings.dedication;
-  const V={home:vHome,siyum:vSiyum,cycles:vCycles,reg:vReg,smart:vSmart,form:vForm,done:vDone,where:vWhere,mine:vMine,tohorot:vTohorot,camps:vCamps,contact:vContact,exams:vExams,messages:vMessages,lottery:vLottery,auth:vAuth,admin:vAdmin,explain:vExplain,versions:vVersions,newgroup:vNewGroup};
+  const V={home:vHome,siyum:vSiyum,cycles:vCycles,reg:vReg,smart:vSmart,chapters:vChapters,form:vForm,done:vDone,where:vWhere,mine:vMine,tohorot:vTohorot,camps:vCamps,contact:vContact,exams:vExams,messages:vMessages,lottery:vLottery,auth:vAuth,admin:vAdmin,explain:vExplain,versions:vVersions,newgroup:vNewGroup};
   const fk=FROUTE[route.n]; if(fk&&!featOn(fk)&&!ui.admin){ $("main").replaceChildren(h("div",{class:"panel stack"},h("div",{class:"muted",text:"העמוד הזה לא זמין כרגע."}),h("div",{},h("button",{class:"btn primary",type:"button",text:"לבית",onclick:()=>go("home")})))); $("adminLink").hidden=KIOSK; applyKiosk(); return; }
   $("main").replaceChildren(V[route.n]());
   $("adminLink").hidden=route.n==="admin"||KIOSK; applyKiosk();
@@ -512,7 +512,7 @@ function render(){
 
 /* ---------- בית ---------- */
 const FEATS=[["siyum","לימוד והשלמת ש\"ס משניות בחבורה"],["tohorot","קניין טהרות"],["camps","מועדי השנה"],["exams","מבחנים"],["messages","הודעות"],["lottery","הזוכים בהגרלות"],["contact","השארת הודעה למערכת"],["donate","תרומה (דורש קישור תרומה)"]];
-const FROUTE={siyum:"siyum",cycles:"siyum",reg:"siyum",smart:"siyum",form:"siyum",done:"siyum",where:"siyum",mine:"siyum",versions:"siyum",newgroup:"siyum",tohorot:"tohorot",camps:"camps",exams:"exams",messages:"messages",lottery:"lottery",contact:"contact"};
+const FROUTE={siyum:"siyum",cycles:"siyum",reg:"siyum",smart:"siyum",chapters:"siyum",form:"siyum",done:"siyum",where:"siyum",mine:"siyum",versions:"siyum",newgroup:"siyum",tohorot:"tohorot",camps:"camps",exams:"exams",messages:"messages",lottery:"lottery",contact:"contact"};
 const featOn=(k)=>state.settings["show_"+k]!==false&&(k!=="donate"||!!state.settings.donateUrl);
 const featVis=(k)=>featOn(k)||ui.admin;
 function tile(title,sub,live,to){ return h("button",{class:"tile",type:"button",onclick:()=>go(to)},h("h3",{text:title}),h("div",{class:"sub",text:sub}),live?h("div",{class:"live",text:live}):null); }
@@ -574,6 +574,7 @@ function vSiyum(){
       tile("ארבע החלוקות","מה ההבדל בין 65 ל־133 יחידות, ובין לפי הסדר ובשינוי קל בסדר","","versions"),
       tile("הצעה ליצירת קבוצה","לימוד משניות בחבורה חדשה, למשל לעילוי נשמת","","newgroup"),
       tile("אישור לימוד","",null,"where"),
+      tile("רשימת הפרקים","כל היחידות והפרקים בכל שבוע, לפי הפרשה","","chapters"),
       tile("כניסה לאזור האישי","",me()?null:"נדרשת כניסה","mine")));
 }
 function cycleCard(c,action,label){
@@ -833,6 +834,20 @@ function vDone(){
 }
 
 /* ---------- איפה אוחזים ---------- */
+function vChapters(){
+  const list=visibleCycles(); if(!list.length) return h("div",{class:"panel muted",text:"אין מחזורים להצגה."});
+  if(!ui.chc||!list.some(c=>c.id===ui.chc)) ui.chc=(list.find(c=>c.status==="learning")||list.find(c=>c.status==="open")||list[0]).id;
+  const c=cyc(ui.chc), us=cunits(c), N=us[0].w, wi=weekIdx(c); ui.chv=ui.chv||"week";
+  const sw=h("div",{class:"filters"},...list.map(x=>h("button",{class:"pill",type:"button","aria-pressed":String(x.id===c.id),text:x.name,onclick:()=>{ui.chc=x.id;render();}})));
+  const vw=h("div",{class:"filters"},...[["week","לפי שבוע / פרשה"],["unit","לפי יחידה"]].map(([k,t])=>h("button",{class:"pill",type:"button","aria-pressed":String(ui.chv===k),text:t,onclick:()=>{ui.chv=k;render();}})));
+  const taken=takenSet(c.id), mine=new Set(me()?state.regs.filter(r=>r.cid===c.id&&r.lid===me().id).flatMap(r=>r.units):[]);
+  let body;
+  if(ui.chv==="unit") body=weekTable(c,us,{mine});
+  else body=h("div",{class:"stack"},...Array.from({length:N},(_,i)=>h("div",{class:"panel stack",style:i===wi?"border:2px solid var(--accent)":""},
+    h("div",{class:"row"},h("b",{class:"grow",text:weekLabel(c,i)+" · "+fmtDate(addDays(c.start,i*7))}),i===wi?h("span",{class:"chip mine",text:"השבוע"}):null),
+    ...us.filter(u=>u.wk[i]).map(u=>h("div",{class:"muted"},h("b",{class:"num",text:"יחידה "+u.c+" "}),u.wk[i],mine.has(u.c)?h("b",{text:" ← שלך"}):null)))));
+  return h("div",{class:"stack"},h("h2",{text:"רשימת הפרקים"}),sw,vw,body);
+}
 function vWhere(){
   const list=visibleCycles(); if(!list.length) return h("div",{class:"panel muted",text:"אין מחזורים להצגה."});
   if(!ui.wc||!list.some(c=>c.id===ui.wc)) ui.wc=(list.find(c=>c.status==="learning")||list[0]).id;
