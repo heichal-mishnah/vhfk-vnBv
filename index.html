@@ -1,4 +1,4 @@
 update auth.users
-set encrypted_password = extensions.crypt('<Nav-656414>', extensions.gen_salt('bf')),
+set encrypted_password = extensions.crypt('<Nav-6556414>', extensions.gen_salt('bf')),
     email_confirmed_at = coalesce(email_confirmed_at, now())
 where email = '4570018r@gmail.com';
